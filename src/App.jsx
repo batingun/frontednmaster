@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 
 // Vercel'de bu değişkeni ayarlayacağız — Railway URL'i buraya gelecek
-const API = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+const API = import.meta.env.VITE_API_URL || "https://web-production-fc41d.up.railway.app/api";
 
 const C = {
   bg:"#100e1a", surface:"#17132a", card:"#1e1930", border:"#2e2748",

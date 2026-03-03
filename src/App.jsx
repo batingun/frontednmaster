@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 
-// Vercel'de bu değişkeni ayarlayacağız — Railway URL'i buraya gelecek
 const API = import.meta.env.VITE_API_URL || "https://web-production-fc41d.up.railway.app/api";
 
 const C = {
@@ -18,7 +17,7 @@ const LEAGUES = [
 ];
 
 const STATUS = {
-  injured:   { label:"Sakat",   icon:"🤕", color:C.rose,  bg:"#2d1120" },
+  injured:   { label:"Sakat",   icon:"🤒", color:C.rose,  bg:"#2d1120" },
   suspended: { label:"Cezalı",  icon:"🟥", color:C.amber, bg:"#2a1f08" },
   doubtful:  { label:"Şüpheli", icon:"⚠️", color:C.sky,   bg:"#0d1e2e" },
 };
@@ -27,7 +26,7 @@ const getAccent = id => LEAGUES.find(l => l.id === id)?.accent || C.purple2;
 const daysLeft  = d  => d ? Math.ceil((new Date(d) - new Date()) / 86400000) : null;
 
 function Orb({ style }) {
-  return <div style={{ position:"absolute", borderRadius:"50%", filter:"blur(80px)", opacity:0.18, pointerEvents:"none", ...style }} />;
+  return <div style={{ position:"absolute", borderRadius:"50%", filter:"blur(80px)", opacity:0.15, pointerEvents:"none", ...style }} />;
 }
 
 function StatPill({ label, value, icon, color, loading }) {
@@ -62,7 +61,7 @@ function Chip({ label, active, onClick, color }) {
 }
 
 function PlayerCard({ player }) {
-  const s = STATUS[player.status];
+  const s = STATUS[player.status] || STATUS.injured;
   const days = daysLeft(player.ret);
   const accent = getAccent(player.league);
   const league = LEAGUES.find(l => l.id === player.league);
@@ -79,15 +78,19 @@ function PlayerCard({ player }) {
             <span style={{ fontSize:12,color:C.textMid }}>{player.team}</span>
           </div>
         </div>
-        <span style={{ background:s.bg,color:s.color,borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",gap:4,border:`1px solid ${s.color}33` }}>{s.icon} {s.label}</span>
+        <span style={{ background:s.bg,color:s.color,borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",gap:4,border:`1px solid ${s.color}33`,flexShrink:0 }}>{s.icon} {s.label}</span>
       </div>
       <div style={{ display:"flex",gap:10,paddingLeft:8 }}>
-        {[["SEBEP", player.desc||"Bilinmiyor", C.textMid], ["DÖNÜŞ", days===null?"—":days<=0?"Bu hafta":`${days} gün`, days===null?C.textSub:days<=3?C.rose:days<=7?C.amber:C.teal]].map(([lbl,val,col])=>(
-          <div key={lbl} style={{ flex:1,background:C.surface,borderRadius:10,padding:"10px 12px",border:`1px solid ${C.border}` }}>
-            <div style={{ fontSize:9,color:C.textSub,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:3 }}>{lbl}</div>
-            <div style={{ fontSize:13,fontWeight:600,color:col }}>{val}</div>
+        <div style={{ flex:1,background:C.surface,borderRadius:10,padding:"10px 12px",border:`1px solid ${C.border}` }}>
+          <div style={{ fontSize:9,color:C.textSub,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:3 }}>SEBEP</div>
+          <div style={{ fontSize:13,fontWeight:600,color:C.textMid }}>{player.desc || "Bilinmiyor"}</div>
+        </div>
+        <div style={{ flex:1,background:C.surface,borderRadius:10,padding:"10px 12px",border:`1px solid ${C.border}` }}>
+          <div style={{ fontSize:9,color:C.textSub,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:3 }}>DÖNÜŞ</div>
+          <div style={{ fontSize:13,fontWeight:700,color:days===null?C.textSub:days<=3?C.rose:days<=7?C.amber:C.teal }}>
+            {days===null?"—":days<=0?"Bu hafta":`${days} gün`}
           </div>
-        ))}
+        </div>
       </div>
     </div>
   );
@@ -107,30 +110,30 @@ function Skeleton() {
 }
 
 export default function App() {
-  const [players, setPlayers]           = useState([]);
-  const [teams,   setTeams]             = useState([]);
-  const [league,  setLeague]            = useState("all");
-  const [team,    setTeam]              = useState("Tüm Takımlar");
-  const [status,  setStatus]            = useState("all");
-  const [search,  setSearch]            = useState("");
-  const [loading, setLoading]           = useState(true);
-  const [refreshing, setRefreshing]     = useState(false);
-  const [lastUpdate, setLastUpdate]     = useState("—");
-  const [toast,   setToast]             = useState(null);
-  const [mounted, setMounted]           = useState(false);
+  const [players, setPlayers]       = useState([]);
+  const [teams,   setTeams]         = useState([]);
+  const [league,  setLeague]        = useState("all");
+  const [team,    setTeam]          = useState("all");
+  const [status,  setStatus]        = useState("all");
+  const [search,  setSearch]        = useState("");
+  const [loading, setLoading]       = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState("—");
+  const [toast,   setToast]         = useState(null);
+  const [mounted, setMounted]       = useState(false);
 
   useEffect(()=>{ setTimeout(()=>setMounted(true), 50); }, []);
-  useEffect(()=>{ setTeam("Tüm Takımlar"); }, [league]);
+  useEffect(()=>{ setTeam("all"); }, [league]);
 
   const showToast = (msg, type="success") => { setToast({msg,type}); setTimeout(()=>setToast(null),5000); };
 
   const load = useCallback(async () => {
     try {
       const p = new URLSearchParams();
-      if (league !== "all")          p.set("league", league);
-      if (team !== "Tüm Takımlar")   p.set("team", team);
-      if (status !== "all")          p.set("status", status);
-      if (search)                    p.set("q", search);
+      if (league !== "all") p.set("league", league);
+      if (team !== "all")   p.set("team", team);
+      if (status !== "all") p.set("status", status);
+      if (search)           p.set("q", search);
       const res  = await fetch(`${API}/players?${p}`);
       const data = await res.json();
       setPlayers(data.players || []);
@@ -145,20 +148,23 @@ export default function App() {
       const q   = league !== "all" ? `?league=${league}` : "";
       const res  = await fetch(`${API}/teams${q}`);
       const data = await res.json();
-      setTeams(["Tüm Takımlar", ...(data.teams||[])]);
+      setTeams(data.teams || []);
     } catch {}
   }, [league]);
 
-  useEffect(()=>{ setLoading(true); load(); },    [load]);
-  useEffect(()=>{ loadTeams(); },                 [loadTeams]);
+  useEffect(()=>{ setLoading(true); load(); },  [load]);
+  useEffect(()=>{ loadTeams(); },               [loadTeams]);
 
   const refresh = async () => {
     setRefreshing(true);
     try {
       const res  = await fetch(`${API}/refresh`, {method:"POST"});
       const data = await res.json();
-      if (data.status === "success") { showToast(`✅ ${data.updated} oyuncu güncellendi`); setLastUpdate(data.last_updated); load(); }
-      else showToast(`⚠️ ${data.message||"Hata"}`, "warn");
+      if (data.status === "success") {
+        showToast(`✅ ${data.updated} oyuncu güncellendi`);
+        setLastUpdate(data.last_updated);
+        load();
+      } else showToast(`⚠️ ${data.message||"Hata"}`, "warn");
     } catch { showToast("❌ Bağlantı hatası","error"); }
     setRefreshing(false);
   };
@@ -177,7 +183,9 @@ export default function App() {
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap');
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
         input::placeholder{color:${C.textSub};}
-        ::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:${C.surface};}::-webkit-scrollbar-thumb{background:${C.border};border-radius:3px;}
+        ::-webkit-scrollbar{width:5px;}
+        ::-webkit-scrollbar-track{background:${C.surface};}
+        ::-webkit-scrollbar-thumb{background:${C.border};border-radius:3px;}
         @keyframes spin{to{transform:rotate(360deg);}}
         @keyframes toastIn{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
         @keyframes fadeUp{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}
@@ -185,9 +193,9 @@ export default function App() {
         @keyframes shimmer{0%{background-position:-200% center;}100%{background-position:200% center;}}
       `}</style>
 
-      <Orb style={{width:480,height:480,background:C.purple1,top:-140,left:-100}}/>
-      <Orb style={{width:360,height:360,background:"#5eead4",bottom:100,right:-80}}/>
-      <Orb style={{width:240,height:240,background:"#fb7185",top:"40%",right:"30%"}}/>
+      <Orb style={{width:500,height:500,background:C.purple1,top:-160,left:-120}}/>
+      <Orb style={{width:380,height:380,background:"#5eead4",bottom:80,right:-100}}/>
+      <Orb style={{width:260,height:260,background:"#fb7185",top:"45%",right:"28%"}}/>
 
       {toast && (
         <div style={{ position:"fixed",bottom:28,right:28,zIndex:999,background:"#1a1530",border:`1px solid ${tc}44`,borderRadius:14,padding:"14px 22px",fontSize:13,fontWeight:600,color:tc,boxShadow:`0 16px 48px -8px ${C.purple1}44`,animation:"toastIn 0.35s ease" }}>{toast.msg}</div>
@@ -221,9 +229,10 @@ export default function App() {
       </header>
 
       <main style={{ maxWidth:1280,margin:"0 auto",padding:"28px 32px" }}>
+
         {/* STATS */}
         <div style={{ display:"flex",gap:14,marginBottom:28,opacity:mounted?1:0,transform:mounted?"none":"translateY(16px)",transition:"opacity 0.5s,transform 0.5s" }}>
-          <StatPill label="Sakat Oyuncu"  value={counts.injured}   icon="🤕" color={C.rose}  loading={loading}/>
+          <StatPill label="Sakat Oyuncu"  value={counts.injured}   icon="🤒" color={C.rose}  loading={loading}/>
           <StatPill label="Cezalı Oyuncu" value={counts.suspended} icon="🟥" color={C.amber} loading={loading}/>
           <StatPill label="Şüpheli Durum" value={counts.doubtful}  icon="⚠️" color={C.sky}   loading={loading}/>
           <div style={{ flex:1,background:C.card,border:`1px solid ${C.border}`,borderRadius:16,padding:"18px 22px",display:"flex",alignItems:"center",gap:10 }}>
@@ -242,7 +251,7 @@ export default function App() {
             {LEAGUES.map(l=><LeagueTab key={l.id} league={l} active={league} onClick={()=>setLeague(l.id)}/>)}
           </div>
           <div style={{height:1,background:C.border,marginBottom:16}}/>
-          <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"center"}}>
+          <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"flex-start"}}>
             <div style={{position:"relative",flex:1,minWidth:200}}>
               <span style={{position:"absolute",left:13,top:"50%",transform:"translateY(-50%)",fontSize:14,opacity:0.5}}>🔍</span>
               <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Oyuncu veya takım ara…"
@@ -250,10 +259,11 @@ export default function App() {
                 onFocus={e=>e.target.style.borderColor=C.purple2}
                 onBlur={e=>e.target.style.borderColor=C.border}/>
             </div>
-            {league !== "all" && teams.length > 1 && (
+            {league !== "all" && teams.length > 0 && (
               <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
                 <span style={{fontSize:10,color:C.textSub,textTransform:"uppercase",letterSpacing:"0.1em",fontWeight:700}}>TAKIM</span>
-                {teams.map(t=><Chip key={t} label={t==="Tüm Takımlar"?"Tümü":t} active={team===t} onClick={()=>setTeam(t)} color={getAccent(league)}/>)}
+                <Chip label="Tümü" active={team==="all"} onClick={()=>setTeam("all")} color={getAccent(league)}/>
+                {teams.map(t=><Chip key={t} label={t} active={team===t} onClick={()=>setTeam(t)} color={getAccent(league)}/>)}
               </div>
             )}
             <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
@@ -266,9 +276,9 @@ export default function App() {
 
         <div style={{fontSize:12,color:C.textSub,marginBottom:16,fontWeight:500}}>
           <span style={{color:C.purple3,fontWeight:700}}>{players.length}</span> oyuncu gösteriliyor
+          {search && <span> · "<span style={{color:C.purple2}}>{search}</span>" araması</span>}
         </div>
 
-        {/* GRID */}
         {loading ? (
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(310px,1fr))",gap:14}}>
             {Array(6).fill(0).map((_,i)=><Skeleton key={i}/>)}
@@ -289,7 +299,7 @@ export default function App() {
           </div>
         )}
 
-        <div style={{marginTop:36,textAlign:"center",color:C.textSub,fontSize:11,letterSpacing:"0.06em"}}>
+        <div style={{marginTop:40,textAlign:"center",color:C.textSub,fontSize:11,letterSpacing:"0.06em"}}>
           BATINGUN MASTER TOOL © 2026 · S Sport Plus
         </div>
       </main>
